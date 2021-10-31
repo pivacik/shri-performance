@@ -1,79 +1,115 @@
-function quantile(arr, q) {
-    const sorted = arr.sort((a, b) => a - b);
-    const pos = (sorted.length - 1) * q;
-    const base = Math.floor(pos);
-    const rest = pos - base;
+const counterId = "F0D68381-2BE3-4E1A-9866-A7B37C3E0EE1";
 
-    if (sorted[base + 1] !== undefined) {
-        return Math.floor(sorted[base] + rest * (sorted[base + 1] - sorted[base]));
-    } else {
-        return Math.floor(sorted[base]);
-    }
-};
+fetch(`https://shri.yandex/hw/stat/data?counterId=${counterId}`)
+  .then((res) => res.json())
+  .then((result) => {
+    let data = prepareData(result);
 
-function prepareData(result) {
-	return result.data.map(item => {
-		item.date = item.timestamp.split('T')[0];
+    showSession(counterId);
+    showMetricByDay(data, "2021-10-30");
+    showMetricByPeriod(data, "2021-10-30", "2021-10-31");
+    sliceByBrowser(data, "fcp");
+    sliceByOS(data, "fcp");
+    sliceByPlatform(data, "fcp");
+  });
 
-		return item;
-	});
+// показать значение метрики за несколько дней
+function showMetricByPeriod(data, startDate, endDate) {
+  console.log(`Metrics for period from ${startDate} to ${endDate}`);
+  const filteredData = data.filter(
+    (item) => item.date >= startDate && item.date <= endDate
+  );
+  table(filteredData);
 }
 
-// TODO: реализовать
-// показать значение метрики за несколько день
-function showMetricByPeriod() {
+// показать значение метрики за день
+function showMetricByDay(data, date) {
+  console.log(`Metrics for day ${date}`);
+  const filteredData = data.filter((item) => item.date === date);
+  table(filteredData);
 }
 
 // показать сессию пользователя
-function showSession() {
+function showSession(id) {
+  console.log(`Session with id: ${id}`);
 }
 
-// сравнить метрику в разных срезах
-function compareMetric() {
+// показать метрики через слайс браузеов
+function sliceByBrowser(data, name) {
+  console.log(`Slice of '${name}' by Browser`);
+  getSlice(data, name, "browser");
 }
 
-// любые другие сценарии, которые считаете полезными
-
-
-// Пример
-// добавить метрику за выбранный день
-function addMetricByDate(data, page, name, date) {
-	let sampleData = data
-					.filter(item => item.page == page && item.name == name && item.date == date)
-					.map(item => item.value);
-
-	let result = {};
-
-	result.hits = sampleData.length;
-	result.p25 = quantile(sampleData, 0.25);
-	result.p50 = quantile(sampleData, 0.5);
-	result.p75 = quantile(sampleData, 0.75);
-	result.p95 = quantile(sampleData, 0.95);
-
-	return result;
+// показать метрики через слайс платформ
+function sliceByPlatform(data, name) {
+  console.log(`Slice of '${name}' by Platform`);
+  getSlice(data, name, "platform");
 }
-// рассчитывает все метрики за день
-function calcMetricsByDate(data, page, date) {
-	console.log(`All metrics for ${date}:`);
 
-	let table = {};
-	table.connect = addMetricByDate(data, page, 'connect', date);
-	table.ttfb = addMetricByDate(data, page, 'ttfb', date);
-	table.load = addMetricByDate(data, page, 'load', date);
-	table.square = addMetricByDate(data, page, 'square', date);
-	table.load = addMetricByDate(data, page, 'load', date);
-	table.generate = addMetricByDate(data, page, 'generate', date);
-	table.draw = addMetricByDate(data, page, 'draw', date);
+// показать метрики через слайс операционных стистем
+function sliceByOS(data, name) {
+  console.log(`Slice of '${name}' by OS`);
+  getSlice(data, name, "os");
+}
 
-	console.table(table);
-};
+function getSlice(data, name, sliceBy) {
+  const slicedData = data
+    .filter((item) => item.name === name)
+    .map((item) => {
+      const slice = item.additional[sliceBy];
+      const metric = item.value;
+      return { name: slice, value: metric };
+    });
+  table(slicedData);
+}
 
-fetch('https://shri.yandex/hw/stat/data?counterId=D8F28E50-3339-11EC-9EDF-9F93090795B1')
-	.then(res => res.json())
-	.then(result => {
-		let data = prepareData(result);
+function table(data) {
+  let items = {};
+  for (let { name, value } of data) {
+    if (items[name]) {
+      items[name].push(value);
+    } else {
+      items[name] = [value];
+    }
+  }
 
-		calcMetricsByDate(data, 'send test', '2021-10-22');
+  let table = {};
+  for (let key in items) {
+    table[key] = tableRow(items[key]);
+  }
+  console.table(table);
+}
 
-		// добавить свои сценарии, реализовать функции выше
-	});
+function tableRow(data) {
+  data.sort((a, b) => a - b);
+
+  let result = {};
+
+  result.hits = data.length;
+  result.p25 = quantile(data, 0.25);
+  result.p50 = quantile(data, 0.5);
+  result.p75 = quantile(data, 0.75);
+  result.p95 = quantile(data, 0.95);
+
+  return result;
+}
+
+function quantile(data, q) {
+  const pos = (data.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+
+  if (data[base + 1] !== undefined) {
+    return Math.floor(data[base] + rest * (data[base + 1] - data[base]));
+  } else {
+    return Math.floor(data[base]);
+  }
+}
+
+function prepareData(result) {
+  return result.data.map((item) => {
+    item.date = item.timestamp.split("T")[0];
+
+    return item;
+  });
+}
