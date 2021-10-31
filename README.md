@@ -1,3 +1,5 @@
+# [Github Pages](https://pivacik.github.io/shri-performance/stats.html)
+
 # Счетчик скорости
 - Счетчик реализован в файле send.js, его модифицировать не нужно
 - Пример работы со счетчиком показан в send.html
